@@ -175,12 +175,12 @@ soundprog_one <- function(sgrid,
 
   # Check frequencies
   sfreqs <- as.integer(data_one$freq)
-  sfreqs_def <- c(125L, 160L, 200L, 250L, 315L, 400L, 500L, 630L,
-                  800L, 1000L, 1250L, 1600L, 2000L)
-  if(!all(sfreqs %in% sfreqs_def)){
-    stop("The frequencies must be in the range:\n",
-         "125, 160, 200, 250, 315, 400, 500, 630, 800, 1000, 1250, 1600, 2000")
-  }
+  # sfreqs_def <- c(125L, 160L, 200L, 250L, 315L, 400L, 500L, 630L,
+  #                 800L, 1000L, 1250L, 1600L, 2000L)
+  # if(!all(sfreqs %in% sfreqs_def)){
+  #   stop("The frequencies must be in the range:\n",
+  #        "125, 160, 200, 250, 315, 400, 500, 630, 800, 1000, 1250, 1600, 2000")
+  # }
   name_freqs <- paste0("f", sfreqs)
   # CALCULATE ATMOSPHERIC ABSORPTION LOSS #
   cat("\nCalculating atmospheric absorption loss for an elevation of", src_elev,
