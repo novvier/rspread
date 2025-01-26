@@ -29,14 +29,15 @@ y una capa de uso del suelo para calcular matrices representativas de las celdas
 }
 \examples{
 # Crear un objeto spread.grid
+library(terra)
 dominio <- spread_grid(xorig = 298811, yorig = 4106479, nx = 100,
                        ny = 100, dgrid = 25, epsg = 26911)
 
 # Datos geográficos
 path_dem <- system.file("extdata", "dem.tif", package="rspread")
-terreno <- rast(path_dem)/3.2808 # Conversión de pies a metros
+terreno <- terra::rast(path_dem)/3.2808 # Conversión de pies a metros
 path_land <- system.file("extdata", "land.tif", package="rspread")
-cobertura <- rast(path_land)
+cobertura <- terra::rast(path_land)
 geodatos <- spreadgeo(dominio, terreno, cobertura)
 
 }

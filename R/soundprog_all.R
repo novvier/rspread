@@ -44,6 +44,7 @@
 #' # Crear fuentes como ejemplo
 #' library(sf)
 #' library(dplyr)
+#' library(terra)
 #' fuente1 <- data.frame("ids" = c("sr1", "sr2"),
 #'                       "geometry" = c("POINT(300158.3 4107751.4)",
 #'                                      "POINT(300370.4 4107881.9)")) |>
@@ -61,14 +62,14 @@
 #'
 #' # Datos geográficos
 #' path_dem <- system.file("extdata", "dem.tif", package="rspread")
-#' terreno <- rast(path_dem)/3.2808 # Conversión de pies a metros
+#' terreno <- terra::rast(path_dem)/3.2808 # Conversión de pies a metros
 #' path_land <- system.file("extdata", "land.tif", package="rspread")
-#' cobertura <- rast(path_land)
+#' cobertura <- terra::rast(path_land)
 #' geodatos <- spreadgeo(dominio, terreno, cobertura)
 #'
-#' Cargar valores de frecuencias
+#' # Cargar frecuencias
 #' path_freq <- system.file("extdata", "all_freqs.csv", package="rspread")
-#' frecuencias <- read.csv("all_freqs.csv")
+#' frecuencias <- read.csv(path_freq)
 #'
 #' # Ejecutar la función
 #' resultado <- soundprog_all(

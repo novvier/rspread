@@ -1,23 +1,34 @@
 # R/utils.R
 
+delineate_basins <- function(sgrid, dem, out_folder = F){
+
+  demr <- terra::rast(to_rast(sgrid), val=dem)
+  if(!wbt_init()){
+    stop("WhiteboxTools could not be initialized, use install_whitebox() to install the tools")
+  }
+
+  if(oit_folder){
+    dem_file <- file.path(out_folder, "dem.tif")
+    fil_file <- file.path(out_folder, "fil.tif")
+    d8p_file <- file.path(out_folder, "d8p.tif")
+    bsn_file <- file.path(out_folder, "bsn.tif")
+  } else {
+    cat("The output folder is not defined, the output will be stored in a temporal directory\n")
+    dem_file <- tempfile(fileext = ".tif")
+    fil_file <- tempfile(fileext = ".tif")
+    d8p_file <- tempfile(fileext = ".tif")
+    bsn_file <- tempfile(fileext = ".tif")
+  }
+
+  writeRaster(demr, dem_file)
+  wbt_fill_depressions_wang_and_liu(dem_file, fil_file)
+  wbt_d8_pointer(fil_file, d8p_file)
+  wbt_basins(d8p_file, bsn_file)
+  basins <- rast(bsn_file)
+  return(basins)
+}
+
 euclidean_dist_dir <-  function(sgrid, vec){
-  #' Calcular distancia y dirección euclidiana desde una grilla hacia vectores geográficos
-  #'
-  #' Esta función calcula la distancia euclidiana y la dirección angular en grados desde cada punto de una grilla
-  #' hacia una o varias entidades geográficas definidas por un conjunto de vectores.
-  #'
-  #' sgrid: Un objeto de clase "spread.grid", que define la grilla espacial.
-  #' vec: Un objeto de clase "sf" que representa las entidades geográficas (puntos, líneas o polígonos).
-  #'
-  #' return: Una lista con dos elementos:
-  #'    dist: Una matriz (nx x ny) que contiene las distancias euclidianas desde cada celda de la grilla hasta el vector más cercano.
-  #'    dir: Una matriz (nx x ny) que contiene las direcciones angulares en grados (0-360) desde cada celda hacia el vector más cercano.
-  #'
-  #' details:
-  #' - La dirección euclidiana se mide en grados, siendo 0 equivalente a Norte.
-  #' - Si la dirección no puede calcularse (por ejemplo, celdas sin valor), se asigna un valor de 0.
-  #'
-  # Calculate euclidean distance
   grid_pts <- to_points(sgrid)
   eucdist <- sf::st_distance(grid_pts, vec) |> as.vector()
   eucdist <- matrix(eucdist, nrow=sgrid@ny, ncol=sgrid@nx, byrow=T)
@@ -98,34 +109,6 @@ PathDistance <- function(points, surface = NULL, friction = NULL){
   transitionMatrix(tf)
   ac <- accCost(tf, points)
   return(ac)
-}
-
-delineate_basins <- function(sgrid, dem, out_folder = F){
-
-  demr <- terra::rast(to_rast(sgrid), val=dem)
-  if(!wbt_init()){
-    stop("WhiteboxTools could not be initialized, use install_whitebox() to install the tools")
-  }
-
-  if(oit_folder){
-    dem_file <- file.path(out_folder, "dem.tif")
-    fil_file <- file.path(out_folder, "fil.tif")
-    d8p_file <- file.path(out_folder, "d8p.tif")
-    bsn_file <- file.path(out_folder, "bsn.tif")
-  } else {
-    cat("The output folder is not defined, the output will be stored in a temporal directory\n")
-    dem_file <- tempfile(fileext = ".tif")
-    fil_file <- tempfile(fileext = ".tif")
-    d8p_file <- tempfile(fileext = ".tif")
-    bsn_file <- tempfile(fileext = ".tif")
-  }
-
-  writeRaster(demr, dem_file)
-  wbt_fill_depressions_wang_and_liu(dem_file, fil_file)
-  wbt_d8_pointer(fil_file, d8p_file)
-  wbt_basins(d8p_file, bsn_file)
-  basins <- rast(bsn_file)
-  return(basins)
 }
 
 FocalAllocation <- function(r){

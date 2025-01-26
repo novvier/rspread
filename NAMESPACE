@@ -1,1 +1,2 @@
+useDynLib(rspread, .registration = TRUE)
 exportPattern("^[[:alpha:]]+")

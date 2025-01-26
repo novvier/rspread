@@ -1,8 +1,9 @@
-FC = $(R_HOME)/bin/R CMD SHLIB
-FFLAGS = -O2 -mtune=native
+PKG_FC = gfortran
+PKG_LIBS = $(FLIBS)
+
 OBJECTS = new_barrier.o
 
-all: $(SHLIB)
+all: new_barrier.dll
 
-$(SHLIB): $(OBJECTS)
-	$(FC) $(OBJECTS) -o new_barrier.dll
+new_barrier.dll: $(OBJECTS)
+	$(SHLIB_FC) -shared -o $@ $(OBJECTS) $(PKG_LIBS)
