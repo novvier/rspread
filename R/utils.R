@@ -35,6 +35,11 @@ euclidean_dist_dir <-  function(sgrid, vec){
 
   # Calculate euclidian direction
   r <- terra::rasterize(vec, rast(to_rast(sgrid)))
+  if(all(is.na(values(r)))){
+    cat("Polygon minus to resolution\n")
+    cent <- st_centroid(vec)
+    r <- terra::rasterize(cent, rast(to_rast(sgrid)))
+  }
   re <- terra::direction(r,degrees=TRUE)
   eucdir <- as.matrix(re, wide=T)
   eucdir <- ifelse(eucdir == 0, 360, eucdir)
