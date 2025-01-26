@@ -24,7 +24,7 @@ subroutine new_barrier(xyzsrc, nrow, ncol, size, dem, land, off, roff, barheight
     !roffset = 1
     !offset = 0.34
     !xyzsrc(3) = dem(int(xyzsrc(2)), int(xyzsrc(1)))
-    
+
     src_elev = xyzsrc(3) + off * m2ft
 
     ! Evaluar para cada celda
@@ -37,19 +37,19 @@ subroutine new_barrier(xyzsrc, nrow, ncol, size, dem, land, off, roff, barheight
 
             ! Llamar a la subrutina para obtener las coordenadas del corte del terreno
             call get_terrain_cut(xyzsrc, xyzrec, size, npts, ncol, nrow, dem, land, max_dist, dist_vec, hgt, lc)
-            
+
             distance = max_dist * m2ft
             if (distance == 0) then
                 distance = 0.01
             end if
-            
+
             receiver_elev = xyzrec(3) + roff * m2ft
 
             slope = (receiver_elev - src_elev) / distance
 
             max_height = 0
             bar_dist = distance
-            
+
             do i = 1, npts
                 slope_elev = slope * dist_vec(i) * m2ft + src_elev
                 ha_slope = hgt(i) - slope_elev
@@ -82,14 +82,14 @@ subroutine get_terrain_cut(xysrc, xyrec, size, npts, ncol, nrow, mdem, mland, ma
     real(kind=r8), intent(in) :: size, mdem(nrow,ncol), xysrc(2), xyrec(2)
     real(kind=r8), intent(out) :: max_dist, dist_vec(npts), hgt(npts)
     real(kind=r8) :: rland(nrow, ncol), rlc(npts)
-    real(kind=r8) :: x_coords(npts) , y_coords(npts) 
+    real(kind=r8) :: x_coords(npts) , y_coords(npts)
     real(kind=r8) :: xdiff, ydiff, xsource, ysource, xreceiver, yreceiver, minvalue
 
     xsource = xysrc(1)
     ysource = xysrc(2)
     xreceiver = xyrec(1)
     yreceiver = xyrec(2)
-    
+
     xdiff = (xreceiver - xsource) * size
     ydiff = (yreceiver - ysource) * size
     max_dist = sqrt(xdiff**2 + ydiff**2)
@@ -150,7 +150,7 @@ subroutine find_distances(max_dist, npts, dist_vec)
         do i = 1, npts
             dist_vec(i) = (i - 1) * increment
             dist_vec(npts) = max_dist
-        end do  
+        end do
     end if
 
 end subroutine find_distances
@@ -173,7 +173,7 @@ subroutine find_coords(source, receiver, npts, coords_1d)
     abs_diff = abs(diff)
 
     call find_distances(abs_diff, npts, coords_ini)
-    
+
     do i = 1, npts
         coords_1d(i) = source + coords_ini(i) * direction
     end do
@@ -190,7 +190,7 @@ subroutine extract_values(ncol, nrow, in_array, npts, x_coords, y_coords, extrac
     real(kind=r8), intent(in) :: in_array(nrow, ncol), x_coords(npts), y_coords(npts)
     real(kind=r8), intent(out) :: values(npts)
 
-    character (len=8), intent(in) :: extract_type 
+    character (len=8), intent(in) :: extract_type
 
     do i = 1, size(x_coords)
         if (extract_type == 'nearests') then
@@ -225,7 +225,7 @@ subroutine do_bilinear_interpolation(ncol, nrow, in_array, x, y, zz)
 
     call check_i_j(in_array, i, j, nrow, ncol, fracx, fracy, x, y, z11, z21, z12, z22)
 
-    zz = z11 + fracy*(z21-z11) + fracx*(z12-z11) + fracx*fracy*(z11+z22-z21-z12) 
+    zz = z11 + fracy*(z21-z11) + fracx*(z12-z11) + fracx*fracy*(z11+z22-z21-z12)
 
 end subroutine do_bilinear_interpolation
 
@@ -255,16 +255,16 @@ subroutine check_i_j(in_array, i, j, y_dim, x_dim, fracx, fracy, x, y, z11, z21,
 
     z11 = in_array(i, j)
 
-    ! Round z11    
+    ! Round z11
 
     if (j < x_dim) then
         z12 = in_array(i, j+1)
     end if
-    
+
     if (i < y_dim) then
         z21 = in_array(i+1, j)
     end if
-    
+
     if (j < x_dim .and. i < y_dim) then
         z22 = in_array(i+1, j+1)
     end if
@@ -311,6 +311,10 @@ subroutine calc_vegmax(veg_cut, distance, npts, m2ft, max_veg_loss)
     integer(kind=4), intent(in) :: npts
     integer(kind=4), intent(in) :: veg_cut(npts)
     integer(kind=4) :: count_con, count_heb, count_hwd, i
+    integer(kind=4), dimension(2) :: con_val = [42,43]
+    integer(kind=4), dimension(6) :: heb_val = [71,72,73,74,81,82]
+    integer(kind=4), dimension(1) :: hwd_val = [41]
+    integer(kind=4), dimension(2) :: shb_val = [51,52]
     integer(kind=4), parameter :: r8=selected_real_kind(15,307)
 
     real(kind=r8), intent(in) :: distance, m2ft
@@ -322,7 +326,7 @@ subroutine calc_vegmax(veg_cut, distance, npts, m2ft, max_veg_loss)
     else
         count_con = 0
         do i = 1, npts
-            if (veg_cut(i) == 42 .or. veg_cut(i) == 43) then
+            if (any(veg_cut(i) == con_val)) then
                 count_con = count_con + 1
             end if
         end do
@@ -339,7 +343,7 @@ subroutine calc_vegmax(veg_cut, distance, npts, m2ft, max_veg_loss)
 
         count_hwd = 0
         do i = 1, npts
-            if (veg_cut(i) == 41) then
+            if (any(veg_cut(i) == hwd_val)) then
                 count_hwd = count_hwd + 1
             end if
         end do
@@ -357,7 +361,7 @@ subroutine calc_vegmax(veg_cut, distance, npts, m2ft, max_veg_loss)
         count_heb = 0
 
         do i = 1, npts
-            if (veg_cut(i) == 71 .or. veg_cut(i) == 95 .or. veg_cut(i) == 52) then
+            if (any(veg_cut(i) == heb_val) .or. any(veg_cut(i) == shb_val)) then
                 count_heb = count_heb + 1
             end if
         end do
@@ -365,7 +369,7 @@ subroutine calc_vegmax(veg_cut, distance, npts, m2ft, max_veg_loss)
         max_heb_loss = 0
         if (count_heb > 0) then
             max_heb_loss = 4
-        end if     
+        end if
 
         max_veg_loss = max_con_loss + max_hwd_loss + max_heb_loss
 
