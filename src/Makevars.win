@@ -1,0 +1,8 @@
+FC = $(R_HOME)/bin/R CMD SHLIB
+FFLAGS = -O2 -mtune=native
+OBJECTS = new_barrier.o
+
+all: $(SHLIB)
+
+$(SHLIB): $(OBJECTS)
+	$(FC) $(OBJECTS) -o new_barrier.dll
