@@ -268,8 +268,8 @@ soundprog_one <- function(sgrid,
     noise_propagation <- rep(list(NULL), length(sfreqs))
     names(noise_propagation) <- name_freqs
     for(i in 1:length(sfreqs)){
-      noise_propagation[[i]] <- compute_noise_propagation_v2(sgrid,
-                                                             data_one$db[i], ssl, aal[[i]], BPD_max_veg_loss$vegmax, barwind[[i]])
+      noise_propagation[[i]] <- compute_noise_propagation_v2(
+        sgrid, data_one$db[i], ssl, aal[[i]], BPD_max_veg_loss$vegmax, barwind[[i]])
     }
 
   }
@@ -280,8 +280,8 @@ soundprog_one <- function(sgrid,
                                   "bar" = bar, "topo_zones" = topo_zones))
   } else {
     results <- list("noise_propagation" = noise_propagation,
-                    "loss" = list("ssl" = ssl, "aal" = aal, "wind" = wind, "bar" = bar,
-                                  "barwind" = barwind))
+                    "loss" = list("ssl" = ssl, "aal" = aal, "veg" = BPD_max_veg_loss,
+                                  "wind" = wind, "bar" = bar, "barwind" = barwind))
   }
 
   # list("ssl" = ssl, "aal" = aal)
