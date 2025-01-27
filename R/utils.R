@@ -167,6 +167,11 @@ spherical_spreading_loss <- function(eucdist_ft, measurement_distance){
 }
 
 atmospheric_absorption_loss_core <- function(elev_m, rh, temp_k, sfreq){
+  if(sfreq <= 125){
+    sfreq = 125
+  } else if(sfreq >= 2000){
+    sfreq = 2000
+  }
   # Convert elevation to atmospheric pressure
   p_a = 101.325 * (1 - (2.25577 * (10 ** (-5)) * elev_m)) ** 5.25588
 
