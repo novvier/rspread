@@ -352,8 +352,10 @@ calculate_barrier_path_distance_and_vegmax <- function(
 
   rsl <- .Fortran("new_barrier", srcxyz, rows, cols, cellsize, dem, land,
                   source_offset, receiver_offset, barheight, bardist, vegmax)
-
   # dyn.unload(dll_path)
+  barheight = rsl[[9]]
+  bardist = rsl[[10]]
+  vegmax = rsl[[11]]
 
   # Calculate Barrier Path Distance (ft)
   term1 <- sqrt(barheight**2 + bardist**2)
