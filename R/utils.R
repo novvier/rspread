@@ -371,6 +371,12 @@ calculate_barrier_path_distance_and_vegmax <- function(
 }
 
 barrier_effects_v2 <- function(barrier_path_distance, freq_s){
+  # Corrected
+  if(freq_s <= 125){
+    freq_s = 125
+  } else if(freq_s >= 2000){
+    freq_s = 2000
+  }
   # Calculate barrier factor (N)
   L = ((0.0000000000005*freq_s**4) - (0.000000001*freq_s**3) - (0.0000004*freq_s**2) + (0.0028*freq_s) - (0.3051))
   bar_factor <- barrier_path_distance * L
@@ -395,13 +401,13 @@ compute_noise_propagation_v2 <- function(sgrid, source_level, ssl, aal, veg, bar
   sslloss <- source_level - ssl
 
   # Calculate cumulative spherical spreading and atmospheric absorption loss
-  sslaal <- sslloss + aal
+  sslaal <- sslloss - aal
 
   # Calculate cumulative spherical spreading, atmospheric absorption, and vegetation loss
-  salveg <- sslaal + veg
+  salveg <- sslaal - veg
 
   # Calculate cumulative spherical spreading, atmospheric absorption, vegetation, wind, and barrier loss
-  salvgwnbr <- salveg + barwind
+  salvgwnbr <- salveg - barwind
 
   # Smooth noise propagation patterns
   smoothed <- terra::focal(rast(to_rast(sgrid), val = salvgwnbr), matrix(1,nrow=3,ncol=3),
@@ -532,16 +538,16 @@ compute_noise_propagation <- function(source_level, ssl, aal, veg, wind, bar,
   sslloss <- source_level - ssl
 
   # Calculate cumulative spherical spreading and atmospheric absorption loss
-  sslaal <- sslloss + aal
+  sslaal <- sslloss - aal
 
   # Calculate cumulative spherical spreading, atmospheric absorption, and vegetation loss
-  salveg <- sslaal + veg
+  salveg <- sslaal - veg
 
   # Calculate cumulative spherical spreading, atmospheric absorption, vegetation, and wind loss
-  salvegwin <- salveg + wind
+  salvegwin <- salveg - wind
 
   # Calculate cumulative spherical spreading, atmospheric absorption, vegetation, wind, and barrier loss
-  salvgwnbr <- salvegwin + bar
+  salvgwnbr <- salvegwin - bar
 
   # Pick noise propagation values for areas where ground, atmospheric,
   # or barrier effects dominate
