@@ -328,7 +328,7 @@ calculate_barrier_path_distance_and_vegmax <- function(
   }
 
   if(!is.integer(land)){
-    cat("The landcover is not an integer, converting to integer (truncation)")
+    # cat("The landcover is not an integer, converting to integer (truncation)\n")
     lnd_v <- as.integer(land)
     land <- matrix(lnd_v, nrow=dim_land[1], ncol=dim_land[2])
   }
