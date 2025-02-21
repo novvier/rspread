@@ -148,6 +148,7 @@ soundprog_all <- function(sgrid,
   names(results_all) <- src_id
 
   for(i in src_id){
+    cat("Processing source: ", i, "\n")
     src_one <- src_all_list[[i]]
     data_one <- data_all_list[[i]]
 
