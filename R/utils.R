@@ -420,8 +420,9 @@ compute_noise_propagation_v2 <- function(sgrid, source_level, ssl, aal, veg, bar
   # Patch to prevent smoothing at cell of origin
   pr <- ifelse(source_level_m > 0, salvgwnbr, smoothed)
 
-  return(list("sslloss" = sslloss, "sslaal" = sslaal, "salveg" = salveg,
-              "salvgwnbr" = salvgwnbr, "pr" = pr))
+  # return(list("sslloss" = sslloss, "sslaal" = sslaal, "salveg" = salveg,
+  #             "salvgwnbr" = salvgwnbr, "pr" = pr))
+  return(pr)
 }
 
 delineate_barrier <- function(src_vec, all_basins){
