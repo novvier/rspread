@@ -142,9 +142,9 @@ soundprog_one <- function(sgrid,
 
   if(!new_barrier){
 
-    cat("\nUse of the old barrier approach for SPreAD-GIS has been deprecated.",
-        "It has been kept as the default to maintain backwards compatiblity with",
-        "earlier code. However, use of the new barrier calculations is recommended.\n")
+    # cat("\nUse of the old barrier approach for SPreAD-GIS has been deprecated.",
+    #     "It has been kept as the default to maintain backwards compatiblity with",
+    #     "earlier code. However, use of the new barrier calculations is recommended.\n")
 
     if(is.null(all_basins)){
       cat("All basins don't exist. Calculating basins from DEM...\n")
@@ -170,7 +170,7 @@ soundprog_one <- function(sgrid,
   src_elev_ft <- src_elev * 3.28084 # convert from meters to ft
 
   # CALCULATE SPHERICAL SPREADING LOSS #
-  cat("\nCalculating spherical spreading loss ...\n")
+  # cat("\nCalculating spherical spreading loss ...\n")
   ssl = spherical_spreading_loss(eucdist_ft, mdist_ft)
 
   # Check frequencies
@@ -183,8 +183,8 @@ soundprog_one <- function(sgrid,
   # }
   name_freqs <- paste0("f", sfreqs)
   # CALCULATE ATMOSPHERIC ABSORPTION LOSS #
-  cat("\nCalculating atmospheric absorption loss for an elevation of", src_elev,
-      "m, \nair temperature of", atmos$temp, "C degrees and", atmos$rh, " humidity ...\n")
+  # cat("\nCalculating atmospheric absorption loss for an elevation of", src_elev,
+  #     "m, \nair temperature of", atmos$temp, "C degrees and", atmos$rh, " humidity ...\n")
 
   aal <- rep(list(NULL), length(sfreqs))
   names(aal) <- name_freqs
@@ -195,14 +195,14 @@ soundprog_one <- function(sgrid,
 
   if(!new_barrier){
     # CALCULATE FOLIAGE AND GROUND COVER LOSS #
-    cat("\nCalculating foliage and ground cover loss ...\n")
+    # cat("\nCalculating foliage and ground cover loss ...\n")
     veg <- foliage_groundcover_loss(sgrid, src_vec, eucdist_ft, ge$land, sfreqs[i])
   }
 
   # CALCULATE UPWIND AND DOWNWIND LOSS #
   seas_txt <- seascond$cond[seascond$id == atmos$seas_cond]
-  cat("\nCalculating upwind and downwind loss for wind blowing from", wind_dir,
-      " degrees and wind speed of ", atmos$ws * 1.60934," k/hr on a ", seas_txt, " ...\n")
+  # cat("\nCalculating upwind and downwind loss for wind blowing from", wind_dir,
+  #     " degrees and wind speed of ", atmos$ws * 1.60934," k/hr on a ", seas_txt, " ...\n")
 
   wind <- rep(list(NULL), length(sfreqs))
   names(wind) <- name_freqs
@@ -213,11 +213,11 @@ soundprog_one <- function(sgrid,
 
   if(!new_barrier){
     # Delineate barrier for calculation of barrier loss & topographic zones
-    cat("\nCalculating decline in sound levels due to barrier loss ...\n")
+    # cat("\nCalculating decline in sound levels due to barrier loss ...\n")
     barrier_ground = delineate_barrier(src_one, all_basins)
 
     # CALCULATE TOPOGRAPHIC EFFECTS AND BARRIER LOSS
-    cat("\nCalculating topographic effects and barrier loss ...\n")
+    # cat("\nCalculating topographic effects and barrier loss ...\n")
     bar <- rep(list(NULL), length(sfreqs))
     names(bar) <- name_freqs
     for(i in 1:length(sfreqs)){
@@ -226,7 +226,7 @@ soundprog_one <- function(sgrid,
     }
 
     # CALCULATE LOCATIONS WHERE GROUND, ATMOSPHERIC, AND BARRIER EFFECTS DOMINATE
-    cat("\nIdentifying areas where ground, barrier, and atmospheric effects dominate ...\n")
+    # cat("\nIdentifying areas where ground, barrier, and atmospheric effects dominate ...\n")
     topo_zones <- calculate_topozones(src_one, dem_ft, barrier_ground$ground)
 
     # CALCULATE SUMMARY NOISE PROPAGATION PATTERNS #
@@ -244,7 +244,7 @@ soundprog_one <- function(sgrid,
     # Convert elevation to feet
     dem_ft <- geo$dem * 3.28084
 
-    cat("\nCalculating barrier path distance and maximum vegetation loss ...\n")
+    # cat("\nCalculating barrier path distance and maximum vegetation loss ...\n")
     BPD_max_veg_loss <- calculate_barrier_path_distance_and_vegmax(
       sgrid, src_centroid, src_elev_ft, dem_ft, geo$land, eucdist_ft,
       source_offset, receiver_offset)
@@ -264,7 +264,7 @@ soundprog_one <- function(sgrid,
     }
 
     # CALCULATE SUMMARY NOISE PROPAGATION PATTERNS #
-    cat("\nCalculating final noise propagation patterns ...\n")
+    # cat("\nCalculating final noise propagation patterns ...\n")
     noise_propagation <- rep(list(NULL), length(sfreqs))
     names(noise_propagation) <- name_freqs
     for(i in 1:length(sfreqs)){
@@ -283,6 +283,8 @@ soundprog_one <- function(sgrid,
                     "loss" = list("ssl" = ssl, "aal" = aal, "veg" = BPD_max_veg_loss,
                                   "wind" = wind, "bar" = bar, "barwind" = barwind))
   }
+
+  results <- noise_propagation
 
   # list("ssl" = ssl, "aal" = aal)
   return(results)
