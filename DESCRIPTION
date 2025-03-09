@@ -20,7 +20,7 @@ Imports:
     foreign (>= 0.8),
     raster (>= 3.6),
     gdistance (>= 1.6.4)
-License: GPL (>= 2)
+License: GPL (>= 3)
 Encoding: UTF-8
 LazyData: true
 BugReports: https://github.com/novvier/rspread/issues
