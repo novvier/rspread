@@ -4,7 +4,7 @@
 \alias{spreadgeo}
 \title{Generar capas geográficas basadas en una grilla y datos raster}
 \usage{
-spreadgeo(sgrid, dem, land, cellra = NULL)
+spreadgeo(sgrid, dem, land, cellra = NULL, fast = FALSE, type = NULL)
 }
 \arguments{
 \item{sgrid}{Un objeto de clase `spread.grid`, que define la grilla espacial.}
@@ -38,6 +38,6 @@ path_dem <- system.file("extdata", "dem.tif", package="rspread")
 terreno <- terra::rast(path_dem)/3.2808 # Conversión de pies a metros
 path_land <- system.file("extdata", "land.tif", package="rspread")
 cobertura <- terra::rast(path_land)
-geodatos <- spreadgeo(dominio, terreno, cobertura)
+geodatos <- spreadgeo(dominio, terreno, cobertura, fast=TRUE, type="NLCD")
 
 }

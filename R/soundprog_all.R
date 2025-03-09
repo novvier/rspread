@@ -23,8 +23,8 @@
 #'   \item \code{seas_cond}: Condición estacional (valores del 1 al 10, donde 1=verano despejado y calmado, 10=nublado y ventoso).
 #' }
 #' @param geo Un objeto que contiene datos de elevación (DEM en pies) y cobertura terrestre.
-#' @param new_barrier Lógico. Si es \code{TRUE}, se utiliza un nuevo algoritmo de barreras; de lo contrario, se usa el método basado en cuencas hidrográficas.
-#' @param all_basins Opcional. Un objeto que representa las cuencas hidrográficas, requerido si \code{new_barrier=FALSE}. Si es \code{NULL}, las cuencas se calculan a partir del DEM (no recomendado).
+#' @param old_barrier Lógico. Si es \code{TRUE}, se utiliza el método basado en cuencas hidrográficas; de lo contrario, se usa el nuevo algoritmo de barrera.
+#' @param all_basins Opcional. Un objeto que representa las cuencas hidrográficas, requerido si \code{old_barrier=TRUE}. Si es \code{NULL}, las cuencas se calculan a partir del DEM (no recomendado).
 #' @param source_offset Distancia en metros entre la fuente y el punto de emisión inicial del sonido. Por defecto, \code{0.34}.
 #' @param receiver_offset Distancia en metros entre el receptor y el nivel del suelo. Por defecto, \code{1}.
 #'
@@ -65,7 +65,7 @@
 #' terreno <- terra::rast(path_dem)/3.2808 # Conversión de pies a metros
 #' path_land <- system.file("extdata", "land.tif", package="rspread")
 #' cobertura <- terra::rast(path_land)
-#' geodatos <- spreadgeo(dominio, terreno, cobertura)
+#' geodatos <- spreadgeo(dominio, terreno, cobertura, fast=TRUE, type="NLCD")
 #'
 #' # Cargar frecuencias
 #' path_freq <- system.file("extdata", "all_freqs.csv", package="rspread")
@@ -85,7 +85,7 @@ soundprog_all <- function(sgrid,
                           data_src,
                           atmos,
                           geo,
-                          new_barrier = TRUE,
+                          old_barrier = FALSE,
                           all_basins = NULL,
                           source_offset = 0.34,
                           receiver_offset = 1){
@@ -158,7 +158,7 @@ soundprog_all <- function(sgrid,
       data_one = data_one,
       atmos = atmos,
       geo = geo,
-      new_barrier = new_barrier,
+      old_barrier = old_barrier,
       all_basins = all_basins,
       source_offset = source_offset,
       receiver_offset = receiver_offset

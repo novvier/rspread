@@ -108,7 +108,7 @@ subroutine get_terrain_cut(xysrc, xyrec, size, npts, ncol, nrow, mdem, mland, ma
         print *, 'Error: x_coords is less than 1 for', xreceiver, yreceiver
         print *, 'x_coords:'
         print *, x_coords
-        stop
+        error stop
     end if
 
     call min(y_coords, minvalue, npts)
@@ -117,7 +117,7 @@ subroutine get_terrain_cut(xysrc, xyrec, size, npts, ncol, nrow, mdem, mland, ma
         print *, 'Error: y_coords is less than 1 for', xreceiver, yreceiver
         print *, 'y_coords:'
         print *, y_coords
-        stop
+        error stop
     end if
 
     ! use coordinates to extract elevation
@@ -245,12 +245,12 @@ subroutine check_i_j(in_array, i, j, y_dim, x_dim, fracx, fracy, x, y, z11, z21,
 
     if (j < 1 .or. j > x_dim) then
         print *, 'fuera de rango: j=', j, 'x_dim=', x_dim
-        stop
+        error stop
     end if
 
     if (i < 1 .or. i > y_dim) then
         print *, 'fuera de rango: i=', i, 'y_dim=', y_dim
-        stop
+        error stop
     end if
 
     z11 = in_array(i, j)
@@ -300,7 +300,7 @@ subroutine check_i_j(in_array, i, j, y_dim, x_dim, fracx, fracy, x, y, z11, z21,
         print *, 'A source or receiver location is outside the supported landscape'
         print *, '(must be >= 1/2 cell width/length from the edge of the landscape)'
         print *, 'i:', i, 'j:', j, 'x_dim:', x_dim, 'y_dim:', y_dim, 'fracx:', fracx, 'fracy:', fracy, 'x:', x, 'y:', y
-        stop
+        error stop
     end if
 
 end subroutine check_i_j
@@ -311,10 +311,10 @@ subroutine calc_vegmax(veg_cut, distance, npts, m2ft, max_veg_loss)
     integer(kind=4), intent(in) :: npts
     integer(kind=4), intent(in) :: veg_cut(npts)
     integer(kind=4) :: count_con, count_heb, count_hwd, i
-    integer(kind=4), dimension(2) :: con_val = [42,43]
-    integer(kind=4), dimension(6) :: heb_val = [71,72,73,74,81,82]
-    integer(kind=4), dimension(1) :: hwd_val = [41]
-    integer(kind=4), dimension(2) :: shb_val = [51,52]
+    integer(kind=4), dimension(1) :: con_val = [2]
+    integer(kind=4), dimension(1) :: heb_val = [3]
+    integer(kind=4), dimension(1) :: hwd_val = [4]
+    integer(kind=4), dimension(1) :: shb_val = [5]
     integer(kind=4), parameter :: r8=selected_real_kind(15,307)
 
     real(kind=r8), intent(in) :: distance, m2ft

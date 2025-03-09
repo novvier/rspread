@@ -10,7 +10,7 @@ soundprog_all(
   data_src,
   atmos,
   geo,
-  new_barrier = TRUE,
+  old_barrier = FALSE,
   all_basins = NULL,
   source_offset = 0.34,
   receiver_offset = 1
@@ -41,9 +41,9 @@ que identifica cada fuente, o una lista de estos objetos.}
 
 \item{geo}{Un objeto que contiene datos de elevación (DEM en pies) y cobertura terrestre.}
 
-\item{new_barrier}{Lógico. Si es \code{TRUE}, se utiliza un nuevo algoritmo de barreras; de lo contrario, se usa el método basado en cuencas hidrográficas.}
+\item{old_barrier}{Lógico. Si es \code{TRUE}, se utiliza el método basado en cuencas hidrográficas; de lo contrario, se usa el nuevo algoritmo de barrera.}
 
-\item{all_basins}{Opcional. Un objeto que representa las cuencas hidrográficas, requerido si \code{new_barrier=FALSE}. Si es \code{NULL}, las cuencas se calculan a partir del DEM (no recomendado).}
+\item{all_basins}{Opcional. Un objeto que representa las cuencas hidrográficas, requerido si \code{old_barrier=TRUE}. Si es \code{NULL}, las cuencas se calculan a partir del DEM (no recomendado).}
 
 \item{source_offset}{Distancia en metros entre la fuente y el punto de emisión inicial del sonido. Por defecto, \code{0.34}.}
 
@@ -92,7 +92,7 @@ path_dem <- system.file("extdata", "dem.tif", package="rspread")
 terreno <- terra::rast(path_dem)/3.2808 # Conversión de pies a metros
 path_land <- system.file("extdata", "land.tif", package="rspread")
 cobertura <- terra::rast(path_land)
-geodatos <- spreadgeo(dominio, terreno, cobertura)
+geodatos <- spreadgeo(dominio, terreno, cobertura, fast=TRUE, type="NLCD")
 
 # Cargar frecuencias
 path_freq <- system.file("extdata", "all_freqs.csv", package="rspread")

@@ -10,10 +10,11 @@ soundprog_one(
   data_one,
   atmos,
   geo,
-  new_barrier = TRUE,
+  old_barrier = FALSE,
   all_basins = NULL,
   source_offset = 0.34,
-  receiver_offset = 1
+  receiver_offset = 1,
+  all_results = FALSE
 )
 }
 \arguments{
@@ -51,11 +52,11 @@ sound pressure levels (\code{db}), and measurement distance (\code{dist}).}
   \item \code{land}: Land cover data.
 }}
 
-\item{new_barrier}{Logical. If \code{TRUE}, the new barrier algorithm is used.
+\item{old_barrier}{Logical. If \code{TRUE}, the old barrier algorithm is used.
 Defaults to \code{TRUE}.}
 
 \item{all_basins}{A \code{SpatRaster} representing hydrological basins.
-Required only if \code{new_barrier = FALSE}.}
+Required only if \code{old_barrier = TRUE}.}
 
 \item{source_offset}{Numeric. The vertical offset of the source above the
 ground in meters. Defaults to \code{0.34}.}
@@ -73,12 +74,12 @@ A list containing:
         \item \code{ssl}: Spherical spreading loss.
         \item \code{aal}: Atmospheric absorption loss.
         \item \code{veg}: Vegetation and ground cover loss (if
-          \code{new_barrier = FALSE}).
+          \code{old_barrier = TRUE}).
         \item \code{wind}: Wind loss.
         \item \code{bar}: Barrier loss.
         \item \code{barwind}: Combined barrier and wind loss (if
-          \code{new_barrier = TRUE}).
-        \item \code{topo_zones}: Topographic zones (if \code{new_barrier = FALSE}).
+          \code{old_barrier = FALSE}).
+        \item \code{topo_zones}: Topographic zones (if \code{old_barrier = TRUE}).
       }
   }
 }
@@ -106,7 +107,7 @@ path_dem <- system.file("extdata", "dem.tif", package="rspread")
 terreno <- terra::rast(path_dem)/3.2808 # Conversión de pies a metros
 path_land <- system.file("extdata", "land.tif", package="rspread")
 cobertura <- terra::rast(path_land)
-geodatos <- spreadgeo(dominio, terreno, cobertura)
+geodatos <- spreadgeo(dominio, terreno, cobertura, fast=TRUE, type="NLCD")
 
 # Cargar frecuencias
 path_freq <- system.file("extdata", "all_freqs.csv", package="rspread")
@@ -119,7 +120,7 @@ results <- soundprog_one(
   data_one = frecuencias,
   atmos = list("temp"=28, "rh"=50, "wd"=105, "ws"=12.8, "seas_cond"=5),
   geo = geodatos,
-  new_barrier = TRUE
+  old_barrier = FALSE
 )
 
 }

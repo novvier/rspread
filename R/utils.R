@@ -7,7 +7,7 @@ delineate_basins <- function(sgrid, dem, out_folder = F){
     stop("WhiteboxTools could not be initialized, use install_whitebox() to install the tools")
   }
 
-  if(oit_folder){
+  if(out_folder){
     dem_file <- file.path(out_folder, "dem.tif")
     fil_file <- file.path(out_folder, "fil.tif")
     d8p_file <- file.path(out_folder, "d8p.tif")
@@ -57,7 +57,7 @@ PathDistance <- function(points, surface = NULL, friction = NULL){
   # Convert to rasterLayer
   if(as.character(class(surface)) != "RasterLayer"){
     if(as.character(class(surface)) == "SpatRaster"){
-      surface <- raster(surface)
+      surface <- raster::raster(surface)
     } else {
       stop("The surface raster is not a RasterLayer or SpatRaster")
     }
@@ -79,40 +79,40 @@ PathDistance <- function(points, surface = NULL, friction = NULL){
   } else {
     if(as.character(class(friction)) != "RasterLayer"){
       if(as.character(class(friction)) == "SpatRaster"){
-        friction <- raster(friction)
+        friction <- raster::raster(friction)
       } else {
         stop("The surface raster is not a RasterLayer or SpatRaster")
       }
     }
     # Verificar si los raster tienen la misma dimensión y resolución
-    compareRaster(friction, surface)
+    raster::compareRaster(friction, surface)
   }
   # Determinar el costo o friccion
-  tc <- transition(friction, transitionFunction = function(x) 1/mean(x), directions = 8)
-  transitionMatrix(tc)
+  tc <- gdistance::transition(friction, transitionFunction = function(x) 1/mean(x), directions = 8)
+  gdistance::transitionMatrix(tc)
   # tcf <- geoCorrection(tc*resol)
   tcf <- tc
-  transitionMatrix(tcf)
+  gdistance::transitionMatrix(tcf)
   # Determinar la distancia vertical
-  dv <- transition(surface, transitionFunction = function(x) 1/(abs(x[2] - x[1])), directions = 8)
-  transitionMatrix(dv)
+  dv <- gdistance::transition(surface, transitionFunction = function(x) 1/(abs(x[2] - x[1])), directions = 8)
+  gdistance::transitionMatrix(dv)
   # Distancia horizontal = 1
   # dh = 1
   u <- surface
   values(u) <- 1
-  dh <- transition(u, transitionFunction = function(x) mean(x), directions = 8)
+  dh <- gdistance::transition(u, transitionFunction = function(x) mean(x), directions = 8)
   # Aplicar factor a diagonales
-  dh <- geoCorrection(dh)
-  transitionMatrix(dh)
+  dh <- gdistance::geoCorrection(dh)
+  gdistance::transitionMatrix(dh)
   # Extraer matriz de adyacencia
-  adj <- adjacent(tc, cells=1:ncell(tc), directions = 8, pairs = TRUE)
+  adj <- raster::adjacent(tc, cells=1:ncell(tc), directions = 8, pairs = TRUE)
   # Determinar distancia real
   dr <- tc
   dr[adj] <- (1/(sqrt(((1/dh[adj])**2 + (1/dv[adj])**2))))
-  transitionMatrix(dr)
+  gdistance::transitionMatrix(dr)
   tf <- tcf*dr
-  transitionMatrix(tf)
-  ac <- accCost(tf, points)
+  gdistance::transitionMatrix(tf)
+  ac <- gdistance::accCost(tf, points)
   return(ac)
 }
 
@@ -214,6 +214,50 @@ atmospheric_absorption_loss <- function(elev_ft, eucdist_ft, rh, temp_fr, sfreq)
   return(aal)
 }
 
+foliage_groundcover_loss <- function(sgrid, eucdist_ft, land, srcxy){
+
+  # Tabla de perdida por vegetación (para distancias en pies)
+  # Tabla de coberturas NLCD
+  lncd_cob_loss <- data.frame(
+    ID = c(1, 2, 3, 4, 5, 6, 7),
+    VALUE = c(0, 501, 101, 662,  101, 0, 0))
+
+  eucdist_z <- abs(eucdist_ft - max(eucdist_ft))
+
+  # Reclassify land cover datasets by foliage and ground cover loss rates
+  Reclassify <- function(r, df) {
+    for (i in 1:nrow(df)) {
+      r <- ifelse(r == df$ID[i], df$VALUE[i], r)
+    }
+    return(r)
+  }
+  land_r <- terra::rast(to_rast(sgrid), val = land)
+  veg_lossrate <- terra::classify(land_r, lncd_cob_loss) |> as.matrix(wide=T)
+
+  veg_cost <- ((veg_lossrate / eucdist_ft) / 100 ) + 1
+
+  veg_cost <- ifelse(veg_cost == Inf, NA, veg_cost) # Because eucdist_z == 0
+
+  # Buffer sound source point (to reduce errors in path distance calculations)
+  srcxy_sf <- st_as_sf(data.frame("x" = srcxy[1], "y" = srcxy[2]),
+    coords = c("x", "y"), crs = sgrid@epsg)
+  sound_src_veg <- st_buffer(srcxy_sf, sgrid@dgrid, nQuadSegs = 10)
+
+  # Calculate path distance around buffered source point (without vegetation loss)
+  points_xy <- sound_src_veg |> st_coordinates()
+  points_xy <- points_xy[,1:2]
+  eucdist_z_r <- terra::rast(to_rast(sgrid), val = eucdist_z, names = "eucdist_z")
+  pathdist1 <- PathDistance(points_xy, surface = eucdist_z_r) |> as.matrix(wide=T)
+
+  veg_cost_r <- terra::rast(to_rast(sgrid), val = veg_cost, names = "veg_cost")
+  pathdist2 <- PathDistance(points_xy, surface = eucdist_z_r, friction = veg_cost_r) |> as.matrix(wide=T)
+  pathdist2 <- ifelse(pathdist2 == Inf, NA, pathdist2)
+
+  # Subtract path distance 1 from path distance 2 to calculate vegetation loss
+  veg <- pathdist2 - pathdist1
+  return(veg)
+}
+
 windloss <- function(sgrid, wd, ws, seas_cond, eucdist_ft, eucdir, sfreq){
   # windloss(sgrid, wind_dir, ws_mph, atmos$seas_cond, eucdist_ft, euc$dir, sfreqs[i])
 
@@ -265,7 +309,7 @@ windloss <- function(sgrid, wd, ws, seas_cond, eucdist_ft, eucdir, sfreq){
       }
       path <- system.file("extdata", "table_13.dbf", package = "rspread")
       table_13 <- foreign::read.dbf(path)
-      table_freq <- table_13[table_13$FREQ == sfreq, ]
+      table_freq <- table_13[table_13$FREQ == freq_w, ]
       upwind_szf <- table_freq$SZF_100[findInterval(x_d, table_freq$FROM)]
       upwind_loss_c <- upwind_loss * upwind_szf / 100
     } else {
@@ -411,9 +455,7 @@ compute_noise_propagation_v2 <- function(sgrid, source_level, ssl, aal, veg, bar
 
   # Smooth noise propagation patterns
   smoothed <- terra::focal(rast(to_rast(sgrid), val = salvgwnbr), matrix(1,nrow=3,ncol=3),
-                           fun = "mean", na.rm = T)
-
-  smoothed <- as.matrix(smoothed, wide=T)
+                           fun = "mean", na.rm = T) |> terra::as.matrix(wide=T)
 
   source_level_m <- matrix(source_level, nrow=sgrid@ny, ncol=sgrid@nx)
 
@@ -462,7 +504,7 @@ topographic_barrier_effects <- function(sgrid, barrier, elev, eucdist_ft, eucdir
 
   elev_dist_mean <- barrier_pts_new |>
     dplyr::mutate(eucdir = as.integer(eucdir)) |>
-    group_by(eucdir) |>
+    dplyr::group_by(eucdir) |>
     dplyr::summarise(FREQUENCY = n(),
                      mean_dem_f = mean(dem_ft, na.rm=T),
                      min_eucdis = min(eucdist_ft, na.rm=T),
@@ -500,6 +542,7 @@ topographic_barrier_effects <- function(sgrid, barrier, elev, eucdist_ft, eucdir
 
   # Calculate barrier factor (N)
   L <- 0.0000000000005*freq_s**4 - 0.000000001*freq_s**3 - 0.0000004*freq_s**2 + 0.0028*freq_s - 0.3051
+  L <- ifelse(L < 0, 0, L)
   bar_factor <- calc_result * L
 
   # The coefficients appear to be from a power regression based on Table 14.
@@ -510,7 +553,7 @@ topographic_barrier_effects <- function(sgrid, barrier, elev, eucdist_ft, eucdir
   return(bar)
 }
 
-calculate_topozones <- function(srcv_vec, dem_ft, ground){
+calculate_topozones <- function(sgrid, srcv_vec, dem_ft, ground){
 
   # Alternate approach using observer points code
   # potential for efficiency gain as multiple points can be calculated at once.
@@ -518,8 +561,9 @@ calculate_topozones <- function(srcv_vec, dem_ft, ground){
   pnt_file <- tempfile(fileext = ".shp")
   view_file <- tempfile(fileext = ".tif")
 
-  writeRaster(dem_ft*3.28084, dem_file)
-  st_write(srcv_vec, pnt_file)
+  dem_ft_r <- terra::rast(to_rast(sgrid), val = dem_ft)
+  writeRaster(dem_ft_r, dem_file)
+  st_write(sf::st_zm(srcv_vec), pnt_file)
 
   wbt_viewshed(dem_file, pnt_file, view_file, height = 0)
   viewshed <- rast(view_file)
@@ -528,12 +572,12 @@ calculate_topozones <- function(srcv_vec, dem_ft, ground){
   ground_atmos <- max(ground, viewshed)
 
   # Define areas where ground, atmospheric, and barrier effects dominate
-  topo_zones <- app(ground_atmos, function(x) ifelse(is.na(x), 2, ifelse(x == 0, 2, x)))
+  topo_zones <- app(ground_atmos, function(x) ifelse(is.na(x), 2, ifelse(x == 0, 2, x))) |> as.matrix(wide=T)
 
-  return(as.vector(topo_zones))
+  return(topo_zones)
 }
 
-compute_noise_propagation <- function(source_level, ssl, aal, veg, wind, bar,
+compute_noise_propagation <- function(sgrid, source_level, ssl, aal, veg, wind, bar,
                                       topo_zones){
   # Subtract spherical spreading loss from source sound level
   sslloss <- source_level - ssl
@@ -559,16 +603,22 @@ compute_noise_propagation <- function(source_level, ssl, aal, veg, wind, bar,
       val[i] <- df[i, w[i]]
     }
     return(val)
-  },x=sslaal, y=salvgwnbr, z=salvegwin, w=as.vector(topo_zones))
+  },x=sslaal, y=salvgwnbr, z=salvegwin, w=topo_zones)
+
+  combined_m <- matrix(combined, nrow=sgrid@ny, ncol=sgrid@nx)
 
   # Smooth noise propagation patterns
-  smoothed <- terra::focal(rast(grid_rst, val = combined), matrix(1,nrow=3,ncol=3),
-                           fun = "mean", na.rm = T)
+  smoothed <- terra::focal(terra::rast(to_rast(sgrid), val = combined_m), matrix(1,nrow=3,ncol=3),
+                           fun = "mean", na.rm = T) |> terra::as.matrix(wide=T)
 
   # Patch to prevent smoothing at cell of origin
-  pr <- ifelse(source_level > 0, combined, as.vector(smoothed))
+  source_level_m <- matrix(source_level, nrow=sgrid@ny, ncol=sgrid@nx)
+  pr <- ifelse(source_level_m > 0, combined_m, smoothed)
 
-  return(list("sslloss" = sslloss, "sslaal" = sslaal, "salveg" = salveg,
-              "salvegwin" = salvegwin, "salvgwnbr" = salvgwnbr, "combined" = combined,
-              "smoothed" = smoothed, "pr" = pr))
+  # Correctd negative values
+  pr <- ifelse(pr < 0, 0, pr)
+  # return(list("sslloss" = sslloss, "sslaal" = sslaal, "salveg" = salveg,
+  #             "salvegwin" = salvegwin, "salvgwnbr" = salvgwnbr, "combined" = combined_m,
+  #             "smoothed" = smoothed, "pr" = pr))
+  return(pr)
 }

@@ -33,10 +33,10 @@
 #'     \item \code{dem}: Digital Elevation Model (DEM) raster.
 #'     \item \code{land}: Land cover data.
 #'   }
-#' @param new_barrier Logical. If \code{TRUE}, the new barrier algorithm is used.
+#' @param old_barrier Logical. If \code{TRUE}, the old barrier algorithm is used.
 #'   Defaults to \code{TRUE}.
 #' @param all_basins A \code{SpatRaster} representing hydrological basins.
-#'   Required only if \code{new_barrier = FALSE}.
+#'   Required only if \code{old_barrier = TRUE}.
 #' @param source_offset Numeric. The vertical offset of the source above the
 #'   ground in meters. Defaults to \code{0.34}.
 #' @param receiver_offset Numeric. The vertical offset of the receiver above
@@ -51,12 +51,12 @@
 #'         \item \code{ssl}: Spherical spreading loss.
 #'         \item \code{aal}: Atmospheric absorption loss.
 #'         \item \code{veg}: Vegetation and ground cover loss (if
-#'           \code{new_barrier = FALSE}).
+#'           \code{old_barrier = TRUE}).
 #'         \item \code{wind}: Wind loss.
 #'         \item \code{bar}: Barrier loss.
 #'         \item \code{barwind}: Combined barrier and wind loss (if
-#'           \code{new_barrier = TRUE}).
-#'         \item \code{topo_zones}: Topographic zones (if \code{new_barrier = FALSE}).
+#'           \code{old_barrier = FALSE}).
+#'         \item \code{topo_zones}: Topographic zones (if \code{old_barrier = TRUE}).
 #'       }
 #'   }
 #'
@@ -79,7 +79,7 @@
 #' terreno <- terra::rast(path_dem)/3.2808 # Conversión de pies a metros
 #' path_land <- system.file("extdata", "land.tif", package="rspread")
 #' cobertura <- terra::rast(path_land)
-#' geodatos <- spreadgeo(dominio, terreno, cobertura)
+#' geodatos <- spreadgeo(dominio, terreno, cobertura, fast=TRUE, type="NLCD")
 #'
 #' # Cargar frecuencias
 #' path_freq <- system.file("extdata", "all_freqs.csv", package="rspread")
@@ -92,7 +92,7 @@
 #'   data_one = frecuencias,
 #'   atmos = list("temp"=28, "rh"=50, "wd"=105, "ws"=12.8, "seas_cond"=5),
 #'   geo = geodatos,
-#'   new_barrier = TRUE
+#'   old_barrier = FALSE
 #' )
 #'
 #' @export
@@ -101,10 +101,11 @@ soundprog_one <- function(sgrid,
                           data_one,
                           atmos,
                           geo,
-                          new_barrier = TRUE,
+                          old_barrier = FALSE,
                           all_basins = NULL,
                           source_offset = 0.34,
-                          receiver_offset = 1){
+                          receiver_offset = 1,
+                          all_results = FALSE){
 
   seascond <- data.frame(
     id = as.integer(1:10),
@@ -114,22 +115,23 @@ soundprog_one <- function(sgrid,
              "clear, windy summer night", "clear, windy winter night",
              "cloudy, calm", "cloudy, windy"))
 
-  # Euclidean distance and direction
+  # Determinar dirección y distancia euclidiana
   euc <- euclidean_dist_dir(sgrid, src_one)
 
-  # Centroid of the source
+  # Centroide de la
   src_centroid <- st_centroid(src_one) |> st_coordinates() |> as.vector()
 
-  # Calculate distance in foot
+  # Calcular distancia en pies
   eucdist_ft <- euc$dist * 3.28084
 
-  # Determinate elevation and landcover
+  # Convertir sf a SaptVector
   if(class(src_one)[1] != "SpatVector"){
     src_spvec <- vect(src_one)
   } else {
     src_spvec <- src_one
   }
 
+  # Extraer elevación de la fuente
   if(geomtype(src_spvec) == "points") {
     demr <- terra::rast(to_rast(sgrid), val=geo$dem)
     src_elev <- terra::extract(demr, src_spvec, ID=F, method="bilinear")[1,1]
@@ -140,11 +142,11 @@ soundprog_one <- function(sgrid,
     stop("The geometry type of the source must be points or polygons")
   }
 
-  if(!new_barrier){
+  if(old_barrier){
 
-    # cat("\nUse of the old barrier approach for SPreAD-GIS has been deprecated.",
-    #     "It has been kept as the default to maintain backwards compatiblity with",
-    #     "earlier code. However, use of the new barrier calculations is recommended.\n")
+    cat("\nEl uso del antiguo método de barreras para SPreAD-GIS ha quedado obsoleto.\n",
+      "Se ha mantenido como predeterminado para mantener la compatibilidad con versiones\n",
+      "anteriores del código. Sin embargo, se recomienda el uso de los nuevos cálculos de barreras..\n")
 
     if(is.null(all_basins)){
       cat("All basins don't exist. Calculating basins from DEM...\n")
@@ -162,30 +164,26 @@ soundprog_one <- function(sgrid,
     stop("The measurement distance must be the same for all frequencies")
   }
 
-  # CONVERT FROM METRIC TO OLD ENGLISH FOR HISTORICAL REASONS
+  # CONVERTIR DEL SISTEMA MÉTRICO AL INGLÉS ANTIGUO POR RAZONES HISTÓRICAS
   temp_fr = atmos$temp * 1.8 + 32 # convert to F
   ws_mph = atmos$ws * 0.621371 # convert to mph
   mdist_ft = sdist * 3.28084 # convert from meters to ft
   wind_dir = convert_wind_dir(atmos$wd)
   src_elev_ft <- src_elev * 3.28084 # convert from meters to ft
 
-  # CALCULATE SPHERICAL SPREADING LOSS #
-  # cat("\nCalculating spherical spreading loss ...\n")
+  # CALCULAR LA PÉRDIDA POR DISPERSIÓN ESFÉRICA
   ssl = spherical_spreading_loss(eucdist_ft, mdist_ft)
 
-  # Check frequencies
+  # Verficar frecuencias (REVISAR)
   sfreqs <- as.integer(data_one$freq)
   # sfreqs_def <- c(125L, 160L, 200L, 250L, 315L, 400L, 500L, 630L,
   #                 800L, 1000L, 1250L, 1600L, 2000L)
   # if(!all(sfreqs %in% sfreqs_def)){
-  #   stop("The frequencies must be in the range:\n",
+  #   stop("Las frecuencias deben estar en el rango:\n",
   #        "125, 160, 200, 250, 315, 400, 500, 630, 800, 1000, 1250, 1600, 2000")
   # }
   name_freqs <- paste0("f", sfreqs)
-  # CALCULATE ATMOSPHERIC ABSORPTION LOSS #
-  # cat("\nCalculating atmospheric absorption loss for an elevation of", src_elev,
-  #     "m, \nair temperature of", atmos$temp, "C degrees and", atmos$rh, " humidity ...\n")
-
+  # CALCULAR LA PÉRDIDA POR ABSORCIÓN ATMOSFÉRICA
   aal <- rep(list(NULL), length(sfreqs))
   names(aal) <- name_freqs
   for(i in 1:length(sfreqs)){
@@ -193,17 +191,12 @@ soundprog_one <- function(sgrid,
                                             temp_fr, sfreqs[i])
   }
 
-  if(!new_barrier){
-    # CALCULATE FOLIAGE AND GROUND COVER LOSS #
-    # cat("\nCalculating foliage and ground cover loss ...\n")
-    veg <- foliage_groundcover_loss(sgrid, src_vec, eucdist_ft, ge$land, sfreqs[i])
+  if(old_barrier){
+    # CALCULATE FOLIAGE AND GROUND COVER LOSS
+    veg <- foliage_groundcover_loss(sgrid, eucdist_ft, geo$land, src_centroid)
   }
 
-  # CALCULATE UPWIND AND DOWNWIND LOSS #
-  seas_txt <- seascond$cond[seascond$id == atmos$seas_cond]
-  # cat("\nCalculating upwind and downwind loss for wind blowing from", wind_dir,
-  #     " degrees and wind speed of ", atmos$ws * 1.60934," k/hr on a ", seas_txt, " ...\n")
-
+  # CALCULAR LA PÉRDIDA A FAVOR Y A CONTRAVIENTO
   wind <- rep(list(NULL), length(sfreqs))
   names(wind) <- name_freqs
   for(i in 1:length(sfreqs)){
@@ -211,81 +204,81 @@ soundprog_one <- function(sgrid,
                           eucdist_ft, euc$dir, sfreqs[i])
   }
 
-  if(!new_barrier){
-    # Delineate barrier for calculation of barrier loss & topographic zones
-    # cat("\nCalculating decline in sound levels due to barrier loss ...\n")
+  # Convertir elevacion a pies
+  dem_ft <- geo$dem * 3.28084
+
+  if(old_barrier){
+    # Delinear barrera para calcular pérdida de barrera y zonas topográficas
     barrier_ground = delineate_barrier(src_one, all_basins)
 
-    # CALCULATE TOPOGRAPHIC EFFECTS AND BARRIER LOSS
-    # cat("\nCalculating topographic effects and barrier loss ...\n")
+    # CALCULAR EFECTOS TOPOGRÁFICOS Y PÉRDIDA DE BARRERA
     bar <- rep(list(NULL), length(sfreqs))
     names(bar) <- name_freqs
     for(i in 1:length(sfreqs)){
       bar[[i]] <- topographic_barrier_effects(
-        sgrid, barrier_ground$barrier, src_elev, eucdist_ft, eucdir, dem_ft, sfreqs[i])
+        sgrid, barrier_ground$barrier, src_elev*3.28084, eucdist_ft, euc$dir,
+        dem_ft, sfreqs[i])
     }
 
-    # CALCULATE LOCATIONS WHERE GROUND, ATMOSPHERIC, AND BARRIER EFFECTS DOMINATE
-    # cat("\nIdentifying areas where ground, barrier, and atmospheric effects dominate ...\n")
-    topo_zones <- calculate_topozones(src_one, dem_ft, barrier_ground$ground)
+    # CALCULAR UBICACIONES DONDE DOMINAN LOS EFECTOS TIERRA, ATMOSFÉRICOS Y DE BARRERA
+    topo_zones <- calculate_topozones(sgrid, src_one, dem_ft, barrier_ground$ground)
 
-    # CALCULATE SUMMARY NOISE PROPAGATION PATTERNS #
+    # CALCULAR PATRONES RESUMIDOS DE PROPAGACIÓN DE RUIDO
     noise_propagation <- rep(list(NULL), length(sfreqs))
     names(noise_propagation) <- name_freqs
     for(i in 1:length(sfreqs)){
-      noise_propagation[[i]] <- compute_noise_propagation(
-        data_one$db[i], ssl, aal[[i]], veg[[i]], wind[[i]], bar[[i]], topo_zones)
+      noise_propagation[[i]] <- compute_noise_propagation(sgrid,
+        data_one$db[i], ssl, aal[[i]], veg, wind[[i]], bar[[i]], topo_zones)
     }
 
-    noise_propagation <- compute_noise_propagation(src, ssl, aal, veg, wind,
-                                                   bar, topo_zones)
   } else {
 
-    # Convert elevation to feet
-    dem_ft <- geo$dem * 3.28084
-
-    # cat("\nCalculating barrier path distance and maximum vegetation loss ...\n")
+    # Cálculo de la distancia de la trayectoria de la barrera y la pérdida máxima de vegetación
     BPD_max_veg_loss <- calculate_barrier_path_distance_and_vegmax(
       sgrid, src_centroid, src_elev_ft, dem_ft, geo$land, eucdist_ft,
       source_offset, receiver_offset)
 
-    # Calculate barrier effect
+    # Calcular el efecto barrera
     bar <- rep(list(NULL), length(sfreqs))
     names(bar) <- name_freqs
     for(i in 1:length(sfreqs)){
       bar[[i]] <- barrier_effects_v2(BPD_max_veg_loss$BPD, sfreqs[i])
     }
 
-    # Check if barrier + wind exceeds 25 dB, if so, cap at 25 dB
+    # Verificar si la barrera + viento supera los 25 dB, si es así, limitar a 25 dB
     barwind <- rep(list(NULL), length(sfreqs))
     names(barwind) <- name_freqs
     for(i in 1:length(sfreqs)){
       barwind[[i]] <- check_barrier_wind(bar[[i]], wind[[i]])
     }
 
-    # CALCULATE SUMMARY NOISE PROPAGATION PATTERNS #
-    # cat("\nCalculating final noise propagation patterns ...\n")
+    # CALCULAR PATRONES FINALES DE PROPAGACIÓN DE RUIDO
     noise_propagation <- rep(list(NULL), length(sfreqs))
     names(noise_propagation) <- name_freqs
     for(i in 1:length(sfreqs)){
       noise_propagation[[i]] <- compute_noise_propagation_v2(
         sgrid, data_one$db[i], ssl, aal[[i]], BPD_max_veg_loss$vegmax, barwind[[i]])
     }
-
   }
 
-  if(!new_barrier){
-    results <- list("noise_propagation" = noise_propagation,
-                    "loss" = list("ssl" = ssl, "aal" = aal, "veg" = veg, "wind" = wind,
-                                  "bar" = bar, "topo_zones" = topo_zones))
+  if(old_barrier){
+    if(all_results){
+      results <- list("noise_propagation" = noise_propagation,
+                      "loss" = list("ssl" = ssl, "aal" = aal, "veg" = veg, "wind" = wind,
+                                    "bar" = bar, "topo_zones" = topo_zones))
+    } else {
+      results <- noise_propagation
+    }
+
   } else {
-    results <- list("noise_propagation" = noise_propagation,
-                    "loss" = list("ssl" = ssl, "aal" = aal, "veg" = BPD_max_veg_loss,
-                                  "wind" = wind, "bar" = bar, "barwind" = barwind))
+    if(all_results){
+      results <- list("noise_propagation" = noise_propagation,
+                      "loss" = list("ssl" = ssl, "aal" = aal, "veg" = BPD_max_veg_loss,
+                                    "wind" = wind, "bar" = bar, "barwind" = barwind))
+    } else {
+      results <- noise_propagation
+    }
   }
 
-  results <- noise_propagation
-
-  # list("ssl" = ssl, "aal" = aal)
   return(results)
 }

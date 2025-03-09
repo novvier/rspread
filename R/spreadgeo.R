@@ -26,27 +26,53 @@
 #' terreno <- terra::rast(path_dem)/3.2808 # Conversión de pies a metros
 #' path_land <- system.file("extdata", "land.tif", package="rspread")
 #' cobertura <- terra::rast(path_land)
-#' geodatos <- spreadgeo(dominio, terreno, cobertura)
+#' geodatos <- spreadgeo(dominio, terreno, cobertura, fast=TRUE, type="NLCD")
 #'
 #' @export
-spreadgeo <- function(sgrid, dem, land, cellra=NULL){
+spreadgeo <- function(sgrid, dem, land, cellra=NULL, fast=FALSE, type=NULL){
 
-  p <- terra::as.points(to_rast(sgrid), values=F)
-  if(is.null(cellra)){
-    cellra <- sgrid@dgrid/2
+  if (type == "ESA") {
+    link_df <- data.frame("ESA" = c(10, 20, 30, 40, 50, 60, 70, 80, 90, 95, 100),
+                          "value" = c(4,5,3,3,6,1,7,7,3,4,3))
+    land <- terra::classify(land, link_df)
+  } else if (type == "NLCD") {
+    link_df <- data.frame("NLCD" = c(11,12,21,22,23,24,31,32,41,42,43,51,52,71,
+                                     72,73,74,81,82,90,91,92,93,94,95,96,97,98,99),
+                          "value" = c(7,7,6,6,6,6,1,1,4,2,2,5,5,3,3,3,3,3,3,4,4,
+                                      5,4,5,3,3,3,3,3))
+    land <- terra::classify(land, link_df)
+  } else if (is.null(type)) {
+    u_val <- unique(terra::values(land, mat=F))
+    if (!all(u_val %in% 1:7)) {
+      stop("La capa de uso del suelo no tiene valores categóricos válidos\n")
+    }
   }
-  b <- terra::buffer(p, cellra, capstyle="square")
-  values(b) <- 1:sgrid@total_points
-  e <- terra::zonal(dem, b, mean, na.rm=T)
-  em <- matrix(e[, 1], nrow=sgrid@ny, ncol=sgrid@nx, byrow=T)
 
-  getmode <- function(v) {
-    uniqv <- unique(v)
-    uniqv[which.max(tabulate(match(v, uniqv)))]
+  if(fast){
+    r <- to_rast(sgrid)
+    values(r) <- 0
+    e <- terra::resample(dem, r, method = "mode")
+    em <- as.matrix(e, wide=T)
+    l <- terra::resample(land, r, method = "mode")
+    lc <- as.matrix(l, wide=T)
+  } else {
+    p <- terra::as.points(to_rast(sgrid), values=F)
+    if(is.null(cellra)){
+      cellra <- sgrid@dgrid/2
+    }
+    b <- terra::buffer(p, cellra, capstyle="square")
+    values(b) <- 1:sgrid@total_points
+    e <- terra::zonal(dem, b, mean, na.rm=T)
+    em <- matrix(e[, 1], nrow=sgrid@ny, ncol=sgrid@nx, byrow=T)
+
+    getmode <- function(v) {
+      uniqv <- unique(v)
+      uniqv[which.max(tabulate(match(v, uniqv)))]
+    }
+
+    l <- terra::extract(land, b, getmode, ID=F)
+    lc <- matrix(l[, 1], nrow=sgrid@ny, ncol=sgrid@nx, byrow=T)
   }
 
-  l <- terra::extract(land, b, getmode, ID=F)
-  lm <- matrix(l[, 1], nrow=sgrid@ny, ncol=sgrid@nx, byrow=T)
-
-  return(list("dem"=em, "land"=lm))
+  return(list("dem"=em, "land"=lc))
 }
