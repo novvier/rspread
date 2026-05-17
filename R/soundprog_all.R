@@ -89,7 +89,7 @@ soundprog_all <- function(sgrid,
                           all_basins = NULL,
                           source_offset = 0.34,
                           receiver_offset = 1){
-
+  time0 <- Sys.time()
   verificate_sfobj <- function(x){
     # Verificar si el onjeto es un sf
     if(class(x)[1] != "sf"){
@@ -148,7 +148,8 @@ soundprog_all <- function(sgrid,
   names(results_all) <- src_id
 
   for(i in src_id){
-    cat("Processing source: ", i, "\n")
+    dif_time <- capture.output(print(Sys.time() - time0))
+    cat("Processing source: ", i, "-", dif_time,"\n")
     src_one <- src_all_list[[i]]
     data_one <- data_all_list[[i]]
 

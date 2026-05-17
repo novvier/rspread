@@ -144,6 +144,78 @@ FocalAllocation <- function(r){
   return(r)
 }
 
+FocalAllocation_fast <- function(r){
+  
+  # Función vectorizada para un vecindario 3x3
+  FindValue_vec <- function(x){
+    # x es un vector de 9 elementos
+    center <- x[5]
+    if(!is.na(center)) return(center)
+    
+    # Si todos NA -> NA
+    if(all(is.na(x))) return(NA)
+    
+    # Si los vecinos pares (2,4,6,8) son todos NA
+    if(all(is.na(x[c(2,4,6,8)]))){
+      return(min(x[c(1,3,7,9)], na.rm=TRUE))
+    } else {
+      return(min(x[c(2,4,6,8)], na.rm=TRUE))
+    }
+  }
+  
+  # Crear matriz de 3x3
+  w <- matrix(1,3,3)
+  
+  hasNA <- any(is.na(values(r)))
+  
+  while(hasNA){
+    # focal puede recibir una función R, pero usando terra::app después de focal vectorizamos
+    r <- terra::focal(r, w, fun = FindValue_vec, na.policy="only")
+    hasNA <- any(is.na(values(r)))
+  }
+  
+  return(r)
+}
+
+FocalAllocation_fast2 <- function(r){
+
+  # Obtener índices de celdas NA
+  na_idx <- which(is.na(values(r)))
+  
+  # Mientras queden NAs
+  while(length(na_idx) > 0){
+    
+    # Para cada NA, obtener vecinos 3x3
+    adj <- terra::adjacent(r, na_idx, directions=8, pairs=FALSE, include=TRUE)
+    
+    # Valores de vecinos
+    vals <- values(r)[adj]
+    
+    # Matriz donde cada fila corresponde a un NA y columnas a vecinos
+    mat_vals <- matrix(vals, nrow=length(na_idx), byrow=TRUE)
+    
+    # Función vectorizada para reemplazar NA según tu lógica
+    new_vals <- apply(mat_vals, 1, function(x){
+      center <- x[5]
+      if(!is.na(center)) return(center)
+      if(all(is.na(x))) return(NA)
+      if(all(is.na(x[c(2,4,6,8)]))){
+        return(min(x[c(1,3,7,9)], na.rm=TRUE))
+      } else {
+        return(min(x[c(2,4,6,8)], na.rm=TRUE))
+      }
+    })
+    
+    # Asignar nuevos valores
+    values(r)[na_idx] <- new_vals
+    
+    # Actualizar lista de NAs
+    na_idx <- which(is.na(values(r)))
+  }
+  
+  return(r)
+}
+
 convert_wind_dir <- function(wind_dir){
   if (wind_dir < 180 & wind_dir >= 0){
     wind_dir_out = wind_dir + 180
@@ -515,12 +587,12 @@ topographic_barrier_effects <- function(sgrid, barrier, elev, eucdist_ft, eucdir
   # Assign barrier elevation value by Euclidean direction
   elev_bar_dir <- elev_dist_mean$elev[match(eucdir, elev_dist_mean$eucdir)]
   elev_bar_dir_r <- rast(to_rast(sgrid), val = elev_bar_dir, names = "elev_bar_dir")
-  elev_barrier <- FocalAllocation(elev_bar_dir_r)
+  elev_barrier <- FocalAllocation_fast2(elev_bar_dir_r)
 
   # Assign barrier distance value by Euclidean direction
   dist_bar_dir <- elev_dist_mean$dist[match(eucdir, elev_dist_mean$eucdir)]
   dist_bar_dir_r <- rast(to_rast(sgrid), val = dist_bar_dir, names = "dist_bar_dir")
-  dist_barrier <- FocalAllocation(dist_bar_dir_r)
+  dist_barrier <- FocalAllocation_fast2(dist_bar_dir_r)
 
   # Calculate slope between source and receiver
   slope <- (as.vector(dem_ft) - elev) / eucdist_ft
